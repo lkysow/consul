@@ -203,13 +203,13 @@ function start_consul {
       --hostname "consul-${DC}-server" \
       --network-alias "consul-${DC}-server" \
       -e "CONSUL_LICENSE=$license" \
-      consul-dev \
+      windows/consul-dev \
       agent -dev -datacenter "${DC}" \
-      -config-dir "/workdir/${DC}/consul" \
-      -config-dir "/workdir/${DC}/consul-server" \
+      #-config-dir "C:\\workdir\\${DC}\\consul" \
+      #-config-dir "C:\\workdir\\${DC}\\consul-server" \
       -grpc-port -1 \
       -client "0.0.0.0" \
-      -bind "0.0.0.0" >/dev/null
+      -bind "0.0.0.0" > C:\\consul\\consul.log
 
     docker.exe run -d --name envoy_consul-${DC}_1 \
       --net=envoy-tests \
@@ -218,14 +218,14 @@ function start_consul {
       --network-alias "consul-${DC}-client" \
       -e "CONSUL_LICENSE=$license" \
       ${ports[@]} \
-      consul-dev \
+      windows/consul-dev \
       agent -datacenter "${DC}" \
-      -config-dir "/workdir/${DC}/consul" \
+      # -config-dir "C:\\workdir\\${DC}\consul" \
       -data-dir "/tmp/consul" \
       -client "0.0.0.0" \
       -grpc-port 8502 \
       -datacenter "${DC}" \
-      -retry-join "consul-${DC}-server" >/dev/null
+      -retry-join "consul-${DC}-server" >C:\\consul\\consul.log
   else
     docker_kill_rm consul-${DC}
 
@@ -237,11 +237,11 @@ function start_consul {
       --network-alias "consul-${DC}-server" \
       -e "CONSUL_LICENSE=$license" \
       ${ports[@]} \
-      consul-dev \
+      windows/consul-dev \
       agent -dev -datacenter "${DC}" \
-      -config-dir "/workdir/${DC}/consul" \
-      -config-dir "/workdir/${DC}/consul-server" \
-      -client "0.0.0.0" >/dev/null
+      # -config-dir "C:\\workdir\\${DC}\\consul" \
+      # -config-dir "C:\\workdir\\${DC}\\consul-server" \
+      -client "0.0.0.0" >C:\\consul\\consul.log
   fi
 }
 
@@ -271,7 +271,7 @@ function start_partitioned_client {
     --hostname "consul-${PARTITION}-client" \
     --network-alias "consul-${PARTITION}-client" \
     -e "CONSUL_LICENSE=$license" \
-    consul-dev agent \
+    windows/consul-dev agent \
     -datacenter "primary" \
     -retry-join "consul-primary-server" \
     -grpc-port 8502 \
@@ -535,7 +535,9 @@ function suite_setup {
     # Cleanup from any previous unclean runs.
     suite_teardown
 
-    docker.exe network create envoy-tests &>/dev/null
+    docker.exe network create --driver nat envoy-tests &>/dev/null
+    # docker network create -d "nat" --subnet 10.244.0.0/24 --gateway 10.244.0.1 envoy-tests
+    # docker network create -d "transparent" --subnet 10.244.0.0/24 envoy-tests
 
     # Start the volume container
     #
@@ -552,26 +554,28 @@ function suite_setup {
     # pre-build the verify container
     echo "Rebuilding 'bats-verify' image..."
     
-    docker build -t bats-verify -f Dockerfile-bats-windows .
+    DOCKER_BUILDKIT=0 docker build -t bats-verify -f Dockerfile-bats-windows .
 
     # if this fails on CircleCI your first thing to try would be to upgrade
     # the machine image to the latest version using this listing:
     #
     # https://circleci.com/docs/2.0/configuration-reference/#available-linux-machine-images
     echo "Checking bats image..."
-    
-    docker.exe run --rm -t bats-verify -v
+    # docker.exe run --rm -t bats-verify -v
 
     # pre-build the consul+envoy container
     echo "Rebuilding 'consul-dev-envoy:${ENVOY_VERSION}' image..."
     # TODO - Line below commented for testing
-    # docker build -t consul-dev-envoy:${ENVOY_VERSION} \
-    #     --build-arg ENVOY_VERSION=${ENVOY_VERSION} \
-    #     -f Dockerfile-consul-envoy .
+    DOCKER_BUILDKIT=0 docker build -t consul-dev-envoy:${ENVOY_VERSION} \
+        --build-arg ENVOY_VERSION=${ENVOY_VERSION} \
+        -f Dockerfile-consul-envoy-windows .
+
+    echo "Checking consul-envoy image..."
+    # docker.exe run --rm -t consul-dev-envoy:${ENVOY_VERSION} --version
 
     # pre-build the test-sds-server container
     echo "Rebuilding 'test-sds-server' image..."
-    docker.exe build -t test-sds-server -f Dockerfile-test-sds-server-windows test-sds-server
+    DOCKER_BUILDKIT=0 docker.exe build -t test-sds-server -f Dockerfile-test-sds-server-windows test-sds-server
 }
 
 function suite_teardown {
@@ -594,6 +598,7 @@ function suite_teardown {
 
 function run_containers {
  for name in $@ ; do
+  echo $name
    run_container $name
  done
 }
