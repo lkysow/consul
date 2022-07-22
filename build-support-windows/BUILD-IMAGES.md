@@ -193,11 +193,3 @@ Examples (run from the repository root):
 - `go test -v -run TestRetryJoin ./command/agent` will run all tests in the agent package (see `./command/agent` folder) with name substring `TestRetryJoin`
 
 When a pull request is opened CI will run all tests and lint to verify the change.
-
-If you want to run the tests on Windows images you must attach the win=true flag.
-
-Example:
-
-```shell
-go test -v -timeout=30m -tags integration ./test/integration/connect/envoy -run="TestEnvoy/case-badauthz" -win=true
-```
